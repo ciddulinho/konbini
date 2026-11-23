@@ -396,6 +396,9 @@
     }
   }
 
+  // vibrazione (Android; su iPhone il browser non la supporta)
+  const buzz = pattern => { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(e){} };
+
   // ================= STATO =================
   const st = { running:false, score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, last:0, flash:0, elapsed:0 };
   const mult = () => st.combo >= 25 ? 3 : st.combo >= 10 ? 2 : 1;
@@ -435,9 +438,9 @@
         if (info.bad){
           st.score = Math.max(0, st.score + info.pts); st.combo = 0; st.flash = .2;
           st.pops.push({x:cx,y:top,txt:String(info.pts),col:'#d8322a',life:.9});
-          if (navigator.vibrate) navigator.vibrate(50);
+          buzz(220);
         } else {
-          st.combo++; const p = info.pts * mult(); st.score += p;
+          st.combo++; const p = info.pts * mult(); st.score += p; buzz(it.type==='gold' ? [20,40,20] : 15);
           st.pops.push({x:cx,y:top,txt:'+'+p,col: it.type==='gold' ? '#a97c1c' : '#1d1b22',life:.8});
         }
         st.items.splice(i,1); continue;
