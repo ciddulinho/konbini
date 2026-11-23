@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>KONBINI 便利商店 — Ciddu</title>
+<meta name="description" content="Il mini gioco di Konbini di Ciddu. Acchiappa gli snack in 60 secondi, scala la classifica.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e9eef0; --panel:#ffffff; --ink:#1d1b22; --muted:#5d6670;
+    --green:#1fa463; --blue:#1e6fd9; --tag:#ffd23f; --red:#d8322a;
+    --px: 4px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:"Pixelify Sans","PingFang TC","Noto Sans TC",monospace}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px 12px 40px;-webkit-tap-highlight-color:transparent}
+  .wrap{width:100%;max-width:420px}
+
+  /* bordo pixel */
+  .pix{background:var(--panel);box-shadow:
+      0 calc(-1*var(--px)) 0 0 var(--ink), 0 var(--px) 0 0 var(--ink),
+      calc(-1*var(--px)) 0 0 0 var(--ink), var(--px) 0 0 0 var(--ink),
+      0 calc(2*var(--px)) 0 0 rgba(29,27,34,.25);
+    margin:var(--px)}
+
+  .sign{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:14px}
+  .sign .stripes{display:flex;flex-direction:column;gap:3px}
+  .sign .stripes i{display:block;width:18px;height:6px}
+  .sign h1{font-family:"Press Start 2P",monospace;font-size:17px;letter-spacing:.06em;flex:1}
+  .sign .zh{font-size:15px;font-weight:700;color:var(--muted)}
+
+  .hud{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-bottom:10px;font-family:"Press Start 2P",monospace;font-size:12px}
+  .hud .tag{background:var(--tag);padding:6px 8px}
+  .hud .time.low{color:var(--red)}
+  .hud .combo{color:var(--green);font-size:10px}
+
+  .stage{position:relative;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas#game{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center;background:rgba(255,255,255,.94);line-height:1.35}
+  .overlay.hidden{display:none}
+  .overlay h2{font-family:"Press Start 2P",monospace;font-size:16px;line-height:1.5}
+  .overlay p{font-size:16px;color:var(--muted);max-width:290px}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;width:100%;max-width:300px;text-align:left;font-size:15px}
+  .legend div{display:flex;align-items:center;gap:6px}
+  .legend img{image-rendering:pixelated;width:auto;height:28px}
+  .legend b{font-weight:700}
+  .legend .bad{color:var(--red)}
+  .btn{appearance:none;border:0;font-family:"Press Start 2P",monospace;font-size:13px;padding:14px 22px;background:var(--ink);color:#fff;cursor:pointer;
+       box-shadow:0 4px 0 0 #000}
+  .btn:active{transform:translateY(2px);box-shadow:0 2px 0 0 #000}
+  .btn.alt{background:#fff;color:var(--ink);box-shadow:0 0 0 3px var(--ink),0 5px 0 0 var(--ink)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .pricetag{font-family:"Press Start 2P",monospace;background:var(--tag);font-size:26px;padding:12px 16px 12px 26px;clip-path:polygon(14px 0,100% 0,100% 100%,14px 100%,0 50%)}
+  .row{display:flex;gap:8px;width:100%;max-width:300px}
+  .row input{flex:1;min-width:0;border:3px solid var(--ink);padding:10px;font-family:"Pixelify Sans",monospace;font-size:17px;outline:none;border-radius:0}
+  .msg{font-size:15px;min-height:20px;color:var(--muted)}
+
+  section.card{padding:14px;margin-top:18px}
+  section.card h3{font-family:"Press Start 2P",monospace;font-size:11px;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  section.card h3 span:last-child{font-family:"Pixelify Sans",monospace;font-size:15px}
+  ol.board{list-style:none}
+  ol.board li{display:flex;align-items:center;gap:10px;padding:7px 4px;font-size:18px;border-bottom:2px dotted #cfd6db}
+  ol.board li:last-child{border-bottom:0}
+  ol.board .pos{width:30px;font-family:"Press Start 2P",monospace;font-size:11px;color:var(--muted)}
+  ol.board li:nth-child(1) .pos{color:#c79a00}
+  ol.board .nick{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  ol.board .pts{font-family:"Press Start 2P",monospace;font-size:12px}
+  ol.board li.me{background:#fff3c2}
+  .empty{font-size:16px;color:var(--muted);padding:4px}
+
+  .player .title{font-family:"Press Start 2P",monospace;font-size:13px;margin-bottom:10px}
+  .player audio{width:100%}
+  .player .note{font-size:15px;color:var(--muted);margin-top:6px}
+  .spotify{margin-top:10px}
+  footer{margin-top:18px;font-size:15px;color:var(--muted);text-align:center}
+  footer a{color:var(--ink);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sign pix">
+    <div class="stripes"><i style="background:var(--green)"></i><i style="background:var(--blue)"></i></div>
+    <h1>KONBINI</h1><span class="zh">便利商店</span>
+  </div>
+
+  <div class="hud pix">
+    <span class="tag" id="hudScore">00000</span>
+    <span class="combo" id="hudCombo"></span>
+    <span class="time" id="hudTime">⏱ 60</span>
+  </div>
+
+  <div class="stage pix" id="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startScreen">
+      <h2>60 SECONDI<br>ALLA CHIUSURA</h2>
+      <p>Trascina il cestino col dito (o usa le frecce) e prendi la roba da junkie. Frutta e verdura ti tolgono punti (che schifo le vitamine!!)</p>
+      <div class="legend" id="legend"></div>
+      <button class="btn" id="playBtn">GIOCA</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <h2>SCONTRINO</h2>
+      <div class="pricetag" id="finalScore">0</div>
+      <p id="bestLine"></p>
+      <div class="row">
+        <input id="nick" maxlength="16" placeholder="Il tuo nickname" autocomplete="off">
+        <button class="btn" id="saveBtn">SALVA</button>
+      </div>
+      <div class="msg" id="saveMsg"></div>
+      <button class="btn alt" id="againBtn">RIGIOCA</button>
+    </div>
+  </div>
+
+  <section class="card pix">
+    <h3><span>CLASSIFICA</span><span>排行榜</span></h3>
+    <ol class="board" id="board"><div class="empty">Carico la classifica…</div></ol>
+  </section>
+
+  <section class="card pix player">
+    <h3><span>IN RIPRODUZIONE</span><span>♪</span></h3>
+    <div class="title">KONBINI — CIDDU</div>
+    <audio id="song" src="konbini.mp3" preload="metadata" controls loop></audio>
+    <div class="note" id="songNote">Anteprima. Il pezzo intero esce il 3 dicembre su tutte le piattaforme.</div>
+    <!-- SPOTIFY: dopo il 3/12 incolla qui l'embed del pezzo -->
+    <div class="spotify" id="spotify"></div>
+  </section>
+
+  <footer>Ciddu · <a href="https://instagram.com/ciddulinho" target="_blank" rel="noopener">@ciddulinho</a></footer>
+</div>
+
+<script>
+{
+  // ================= CONFIG =================
+  const SB_URL = 'https://fkyafmgqanbiruahkpxt.supabase.co';
+  const SB_KEY = 'sb_publishable_0wb7aWKpI5uy2ktmQLbQ4g_8w0Ge5Rg';
+  const ROUND = 60;              // secondi a partita
+  const W = 180, H = 250;        // risoluzione pixel del gioco
+  const FLOOR = 222;             // fondo del cestino
+
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+  };
+
+  // ================= PALETTE + SPRITE =================
+  const PAL = {
+    K:'#1d1b22', W:'#ffffff', w:'#d9dde3', g:'#9aa3ad',
+    O:'#ff7a1a', o:'#ffa24a', d:'#c9520c', Y:'#ffd23f', y:'#e0a21a',
+    G:'#e7b93e', H:'#ffe08a', h:'#a97c1c', R:'#d8322a', r:'#9c1f1a',
+    N:'#1f5a32', n:'#123a20', L:'#3f8a55', E:'#f3e6c4', B:'#7a4a22', C:'#f28c28',
+    P:'#ff5fa2', p:'#c23a78', q:'#ffb3d1',
+    U:'#1e6fd9', u:'#124a9c', c:'#9fd0ff',
+    V:'#3fa34d', v:'#2a7335', l:'#a8d08d', A:'#e0352b', a:'#a1201a', F:'#ffd6cf'
+  };
+  const SPR = {
+    doritos:[
+      '.KKKKKKKKKK.',
+      'KdOdOdOdOdOK',
+      'KOOOOOOOOOOK',
+      'KOooOOOOOOOK',
+      'KOoOOOOOOOOK',
+      'KOOOOOYOOOOK',
+      'KOOOOYYYOOOK',
+      'KOOOYYyYYOOK',
+      'KOOYYYYYyYOK',
+      'KOYYYYYYYYYK',
+      'KOOOOOOOOOOK',
+      'KOddddddddOK',
+      'KOOOOOOOOOOK',
+      'KdOdOdOdOdOK',
+      '.KKKKKKKKKK.'],
+    gold:[
+      '.KKKKKKKKKK.',
+      'KhGhGhGhGhGK',
+      'KGGGGGGGGGGK',
+      'KGHHGGGGGGGK',
+      'KGHGGGGGGGGK',
+      'KGGGGGWGGGGK',
+      'KGGGGWWWGGGK',
+      'KGGGWWHWWGGK',
+      'KGGWWWWWHWGK',
+      'KGWWWWWWWWWK',
+      'KGGGGGGGGGGK',
+      'KGhhhhhhhhGK',
+      'KGGGGGGGGGGK',
+      'KhGhGhGhGhGK',
+      '.KKKKKKKKKK.'],
+    kirin:[
+      '..KKKKKK..',
+      '.KwwwwwwK.',
+      'KgwwwwwwgK',
+      'KGHGGGGGhK',
+      'KGHGGGGGhK',
+      'KGHGGGGGhK',
+      'KWWWWWWWwK',
+      'KWWRRRRWwK',
+      'KWWRrrRWwK',
+      'KWWWWWWWwK',
+      'KGHGGGGGhK',
+      'KGHGGGGGhK',
+      'KGHGGGGGhK',
+      'KgwwwwwwgK',
+      '.KKKKKKKK.'],
+    jager:[
+      '....KKKK....',
+      '....KCCK....',
+      '....KddK....',
+      '....KNLK....',
+      '...KNNLNK...',
+      '..KNNNNLNK..',
+      '.KNNNNNNLNK.',
+      'KNNNNNNNNLNK',
+      'KNCCCCCCCCNK',
+      'KNCBEEEEBCNK',
+      'KNCBBEEBBCNK',
+      'KNCEBBBBECNK',
+      'KNCEEBBEECNK',
+      'KNCEEBBEECNK',
+      'KNCCCCCCCCNK',
+      'KNNNNNNNNLNK',
+      'KNNNNNNNNLNK',
+      'KnNNNNNNNLnK',
+      '.KKKKKKKKKK.'],
+    condom:[
+      '.PpPpPpPpPpPp.',
+      'PqqqqqqqqqqqqP',
+      'pqPPPPPPPPPPqp',
+      'PqPPPWWWWPPPqP',
+      'pqPPWqqqqWPPqp',
+      'PqPWqPPPPqWPqP',
+      'pqPWqPPPPqWPqp',
+      'PqPWqPPPPqWPqP',
+      'pqPWqPPPPqWPqp',
+      'PqPPWqqqqWPPqP',
+      'pqPPPWWWWPPPqp',
+      'PqPPPPPPPPPPqP',
+      'pqqqqqqqqqqqqp',
+      '.pPpPpPpPpPpP.'],
+    pocari:[
+      '..KKKKKK..',
+      '.KwwwwwwK.',
+      'KgwwwwwwgK',
+      'KUcUUUUUuK',
+      'KUcUUUUUuK',
+      'KUcUUUUUuK',
+      'KUUUUUUUuK',
+      'KWUUUWWWwK',
+      'KWWWUUUWwK',
+      'KWWWWWUUuK',
+      'KWWWWWWWwK',
+      'KWcWWWWWwK',
+      'KWWWWWWWwK',
+      'KgwwwwwwgK',
+      '.KKKKKKKK.'],
+    apple:[
+      '....K.VV..',
+      '....KVVv..',
+      '.KKKKKKKK.',
+      'KAAFAAAAaK',
+      'KAFAAAAAaK',
+      'KAAAAAAAaK',
+      'KAAAAAAAaK',
+      'KAAAAAAaaK',
+      '.KAAAAaaK.',
+      '..KKKKKK..'],
+    carrot:[
+      '.V..V.V.',
+      '..VVvV..',
+      '...vV...',
+      '.KKKKKK.',
+      'KCoCCCdK',
+      'KCoCCdCK',
+      '.KCCCdK.',
+      '.KCdCCK.',
+      '.KCCCdK.',
+      '..KCCK..',
+      '..KCdK..',
+      '...KK...'],
+    broccoli:[
+      '..KKK.KK..',
+      '.KVVVKVVK.',
+      'KVvVVVVVvK',
+      'KVVVvVVVVK',
+      'KvVVVVVvVK',
+      '.KVVVVvVK.',
+      '..KKllKK..',
+      '...KllK...',
+      '...KllK...',
+      '...KKKK...'],
+    basket:(() => {
+      const r = (c,n)=>c.repeat(n);
+      return [
+        r('.',4)+r('K',16)+r('.',4),
+        r('.',3)+'K'+r('.',16)+'K'+r('.',3),
+        r('.',2)+'K'+r('.',18)+'K'+r('.',2),
+        r('K',24),
+        'K'+r('U',21)+'uK',
+        'K'+r('Ucc',7)+'uK',
+        'K'+r('Ucc',7)+'uK',
+        '.K'+r('U',19)+'uK.',
+        '.K'+r('u',20)+'K.',
+        '..'+r('K',20)+'..'];
+    })()
+  };
+  function makeSprite(rows){
+    const h = rows.length, w = Math.max(...rows.map(r=>r.length));
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    const x = c.getContext('2d');
+    rows.forEach((row,j)=>{ for (let i=0;i<row.length;i++){ const col = PAL[row[i]]; if(col){ x.fillStyle=col; x.fillRect(i,j,1,1); } } });
+    return c;
+  }
+  const IMG = {}; for (const k in SPR) IMG[k] = makeSprite(SPR[k]);
+
+  // ================= ITEM =================
+  const ITEMS = {
+    doritos:{pts:30,  weight:16, name:'Doritos'},
+    kirin:  {pts:20,  weight:16, name:'Kirin'},
+    jager:  {pts:25,  weight:12, name:'Jäger'},
+    pocari: {pts:10,  weight:18, name:'Pocari'},
+    condom: {pts:15,  weight:12, name:'Condom'},
+    gold:   {pts:100, weight:2,  name:'Busta d’oro'},
+    apple:  {pts:-30, weight:1,  bad:true},
+    carrot: {pts:-30, weight:1,  bad:true},
+    broccoli:{pts:-30,weight:1,  bad:true}
+  };
+  const goodKeys = Object.keys(ITEMS).filter(k=>!ITEMS[k].bad);
+  const badKeys  = Object.keys(ITEMS).filter(k=> ITEMS[k].bad);
+  function pick(keys){
+    const tot = keys.reduce((s,k)=>s+ITEMS[k].weight,0); let r=Math.random()*tot;
+    for (const k of keys){ r-=ITEMS[k].weight; if(r<=0) return k; } return keys[0];
+  }
+
+  // legenda
+  const legend = document.getElementById('legend');
+  [['doritos','+30 Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Busta d’oro']]
+    .forEach(([k,t]) => { const d=document.createElement('div'); const im=new Image(); im.src=IMG[k].toDataURL(); im.alt=''; const s=document.createElement('span'); s.textContent=t; d.append(im,s); legend.appendChild(d); });
+  { const d=document.createElement('div'); d.className='bad'; d.style.gridColumn='1/3';
+    ['apple','carrot','broccoli'].forEach(k=>{ const im=new Image(); im.src=IMG[k].toDataURL(); im.alt=''; d.appendChild(im); });
+    const s=document.createElement('span'); s.textContent=' −30 frutta e verdura'; d.appendChild(s); legend.appendChild(d); }
+
+  // ================= CANVAS =================
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let S = 1;
+  function resize(){
+    const cssW = canvas.parentElement.clientWidth || 360;
+    S = Math.max(2, Math.ceil(cssW * (window.devicePixelRatio||1) / W));
+    canvas.width = W*S; canvas.height = H*S;
+    ctx.setTransform(S,0,0,S,0,0); ctx.imageSmoothingEnabled = false;
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // negozio pre-renderizzato
+  const bg = document.createElement('canvas'); bg.width=W; bg.height=H;
+  (() => {
+    const b = bg.getContext('2d');
+    let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+    b.fillStyle='#f7f9fa'; b.fillRect(0,0,W,H);
+    // soffitto
+    b.fillStyle='#e6ebee'; b.fillRect(0,0,W,12);
+    // scaffali con prodotti
+    const shelfCols = ['#ff7a1a','#1e6fd9','#e7b93e','#1fa463','#ff5fa2','#d8322a','#9fd0ff','#f3e6c4'];
+    for (let r=0;r<4;r++){
+      const y = 44 + r*40;
+      for (let x=4; x<W-4; ){
+        const w = 4 + Math.floor(rnd()*4), h = 6 + Math.floor(rnd()*7);
+        b.fillStyle = shelfCols[Math.floor(rnd()*shelfCols.length)];
+        b.globalAlpha = .22; b.fillRect(x, y-h, w, h); b.globalAlpha = 1;
+        x += w + 1 + Math.floor(rnd()*2);
+      }
+      b.fillStyle='#cfd6db'; b.fillRect(0,y,W,2);
+      b.fillStyle='#e8edf0'; b.fillRect(0,y+2,W,1);
+      b.fillStyle='rgba(255,210,63,.6)';
+      for (let c=0;c<6;c++) b.fillRect(8+c*30,y+3,8,3);
+    }
+    // pavimento a scacchi
+    for (let y=FLOOR+4; y<H; y+=6) for (let x=0; x<W; x+=6){
+      b.fillStyle = ((x/6 + (y-FLOOR-4)/6) % 2) ? '#e3e8eb' : '#f1f4f6'; b.fillRect(x,y,6,6);
+    }
+    b.fillStyle='#1fa463'; b.fillRect(0,FLOOR+1,W,2);
+    b.fillStyle='#1e6fd9'; b.fillRect(0,FLOOR+3,W,1);
+  })();
+
+  function drawStore(t){
+    ctx.drawImage(bg,0,0);
+    for (let i=0;i<3;i++){
+      const off = (i===1 && Math.sin(t/180) > 0.97);
+      ctx.fillStyle = off ? '#cfd8df' : '#ffffff'; ctx.fillRect(12+i*58,4,40,3);
+      ctx.fillStyle = off ? '#b9c3ca' : '#bfe0ff'; ctx.fillRect(12+i*58,7,40,1);
+      if (!off){ ctx.fillStyle='rgba(191,224,255,.18)'; ctx.fillRect(10+i*58,8,44,14); }
+    }
+  }
+
+  // ================= STATO =================
+  const st = { running:false, score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, last:0, flash:0, elapsed:0 };
+  const mult = () => st.combo >= 25 ? 3 : st.combo >= 10 ? 2 : 1;
+  const hudScore = document.getElementById('hudScore'), hudTime = document.getElementById('hudTime'), hudCombo = document.getElementById('hudCombo');
+  function hud(){
+    hudScore.textContent = String(Math.max(0,st.score)).padStart(5,'0');
+    const s = Math.ceil(st.time); hudTime.textContent = '⏱ ' + s; hudTime.classList.toggle('low', s <= 10);
+    hudCombo.textContent = mult() > 1 ? 'COMBO x' + mult() : '';
+  }
+
+  function spawn(){
+    const lvl = Math.min(st.elapsed/ROUND,1);
+    const bad = Math.random() < 0.2 + lvl*0.12;
+    const type = bad ? pick(badKeys) : pick(goodKeys);
+    const img = IMG[type];
+    st.items.push({ type, x: 4 + Math.random()*(W-8-img.width), y: -img.height, vy:(52 + lvl*80)*(0.85+Math.random()*0.3), t:Math.random()*6 });
+  }
+
+  function update(dt){
+    st.elapsed += dt; st.time -= dt;
+    if (st.time <= 0){ st.time = 0; return gameOver(); }
+    const lvl = Math.min(st.elapsed/ROUND,1);
+    st.spawnT -= dt;
+    if (st.spawnT <= 0){ spawn(); st.spawnT = (0.8 - lvl*0.42) * (0.7 + Math.random()*0.6); }
+
+    if (keys.l) st.tx -= 150*dt; if (keys.r) st.tx += 150*dt;
+    const bw = IMG.basket.width;
+    st.tx = Math.max(bw/2, Math.min(W-bw/2, st.tx));
+    st.bx += (st.tx - st.bx) * Math.min(1, dt*20);
+
+    const top = FLOOR - IMG.basket.height + 3;
+    for (let i=st.items.length-1;i>=0;i--){
+      const it = st.items[i], img = IMG[it.type], info = ITEMS[it.type];
+      it.y += it.vy*dt; it.t += dt;
+      const bottom = it.y + img.height, cx = it.x + img.width/2;
+      if (bottom >= top && bottom <= top + 9 && Math.abs(cx - st.bx) < bw/2 + 2){
+        if (info.bad){
+          st.score = Math.max(0, st.score + info.pts); st.combo = 0; st.flash = .2;
+          st.pops.push({x:cx,y:top,txt:String(info.pts),col:'#d8322a',life:.9});
+          if (navigator.vibrate) navigator.vibrate(50);
+        } else {
+          st.combo++; const p = info.pts * mult(); st.score += p;
+          st.pops.push({x:cx,y:top,txt:'+'+p,col: it.type==='gold' ? '#a97c1c' : '#1d1b22',life:.8});
+        }
+        st.items.splice(i,1); continue;
+      }
+      if (it.y > H){ if (!info.bad) st.combo = 0; st.items.splice(i,1); }
+    }
+    for (let i=st.pops.length-1;i>=0;i--){ const p=st.pops[i]; p.life-=dt; p.y-=22*dt; if(p.life<=0) st.pops.splice(i,1); }
+    if (st.flash>0) st.flash-=dt;
+  }
+
+  function render(t){
+    drawStore(t);
+    const snap = v => Math.round(v*S)/S;
+    for (const it of st.items) ctx.drawImage(IMG[it.type], snap(it.x), snap(it.y));
+    ctx.drawImage(IMG.basket, snap(st.bx - IMG.basket.width/2), FLOOR - IMG.basket.height + 1);
+    ctx.textAlign='center'; ctx.font='8px "Press Start 2P", monospace';
+    for (const p of st.pops){
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life*1.8));
+      ctx.fillStyle='#fff'; ctx.fillText(p.txt, Math.round(p.x)+1, Math.round(p.y)+1);
+      ctx.fillStyle=p.col; ctx.fillText(p.txt, Math.round(p.x), Math.round(p.y));
+      ctx.globalAlpha = 1;
+    }
+    if (st.time <= 10 && st.running && Math.floor(t/400)%2===0){
+      ctx.fillStyle='#d8322a'; ctx.font='7px "Press Start 2P", monospace'; ctx.fillText('STIAMO CHIUDENDO', W/2, 32);
+    }
+    if (st.flash>0){ ctx.fillStyle=`rgba(216,50,42,${st.flash})`; ctx.fillRect(0,0,W,H); }
+  }
+
+  function loop(ts){
+    if (!st.last) st.last = ts;
+    const dt = Math.min(0.05,(ts-st.last)/1000); st.last = ts;
+    if (st.running){ update(dt); hud(); }
+    render(ts);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ================= INPUT =================
+  const keys = {l:false,r:false};
+  const stage = document.getElementById('stage');
+  const toX = cx => { const r = canvas.getBoundingClientRect(); return (cx - r.left)/r.width*W; };
+  stage.addEventListener('pointerdown', e => { if (st.running) st.tx = toX(e.clientX); });
+  stage.addEventListener('pointermove', e => { if (st.running && (e.pointerType==='mouse' || e.buttons)) st.tx = toX(e.clientX); });
+  stage.addEventListener('touchmove', e => { if (st.running){ e.preventDefault(); st.tx = toX(e.touches[0].clientX); } }, {passive:false});
+  addEventListener('keydown', e => {
+    if (e.key==='ArrowLeft'||e.key==='a') keys.l=true;
+    if (e.key==='ArrowRight'||e.key==='d') keys.r=true;
+    if ((e.key==='ArrowLeft'||e.key==='ArrowRight') && st.running) e.preventDefault();
+  });
+  addEventListener('keyup', e => {
+    if (e.key==='ArrowLeft'||e.key==='a') keys.l=false;
+    if (e.key==='ArrowRight'||e.key==='d') keys.r=false;
+  });
+
+  // ================= SCHERMATE =================
+  const startScreen = document.getElementById('startScreen'), overScreen = document.getElementById('overScreen');
+  const nickInput = document.getElementById('nick'), saveBtn = document.getElementById('saveBtn'), saveMsg = document.getElementById('saveMsg');
+  const song = document.getElementById('song');
+  let saved = false, myEntry = null;
+  nickInput.value = store.get('konbini_nick') || '';
+
+  function startGame(){
+    Object.assign(st, {score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, flash:0, elapsed:0, running:true});
+    saved = false; hud();
+    startScreen.classList.add('hidden'); overScreen.classList.add('hidden');
+    if (song.paused && !song.error) song.play().catch(()=>{});
+  }
+  function gameOver(){
+    st.running = false; st.items = []; hud();
+    const best = Math.max(st.score, Number(store.get('konbini_best')||0));
+    store.set('konbini_best', String(best));
+    document.getElementById('finalScore').textContent = st.score;
+    document.getElementById('bestLine').textContent = (st.score >= best && st.score > 0) ? 'Nuovo record personale.' : 'Il tuo record: ' + best;
+    saveMsg.textContent = ''; saveBtn.disabled = st.score <= 0;
+    overScreen.classList.remove('hidden');
+  }
+  document.getElementById('playBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', startGame);
+
+  // ================= CLASSIFICA (Supabase) =================
+  const boardEl = document.getElementById('board');
+  function renderBoard(rows){
+    boardEl.textContent = '';
+    if (!rows.length){ const d=document.createElement('div'); d.className='empty'; d.textContent='Ancora nessuno. Il primo posto è tuo.'; boardEl.appendChild(d); return; }
+    rows.forEach((r,i) => {
+      const li = document.createElement('li');
+      if (myEntry && r.nickname===myEntry.nickname && r.score===myEntry.score) li.className='me';
+      const a=document.createElement('span'); a.className='pos'; a.textContent=(i+1)+'.';
+      const b=document.createElement('span'); b.className='nick'; b.textContent=r.nickname;
+      const c=document.createElement('span'); c.className='pts'; c.textContent=r.score;
+      li.append(a,b,c); boardEl.appendChild(li);
+    });
+  }
+  async function loadBoard(){
+    const ctrl = new AbortController(), timer = setTimeout(()=>ctrl.abort(), 10000);
+    try{
+      const res = await fetch(`${SB_URL}/rest/v1/scores?select=nickname,score&order=score.desc,created_at.asc&limit=10`, {headers:{apikey:SB_KEY}, signal:ctrl.signal});
+      if (!res.ok) throw new Error(res.status);
+      renderBoard(await res.json());
+    } catch(e){
+      boardEl.innerHTML = '<div class="empty">Classifica non disponibile al momento.</div>';
+    } finally { clearTimeout(timer); }
+  }
+  async function saveScore(){
+    if (saved) return;
+    const nickname = nickInput.value.trim().replace(/\s+/g,' ');
+    if (nickname.length < 2){ saveMsg.textContent = 'Nickname troppo corto (minimo 2 caratteri).'; return; }
+    saveBtn.disabled = true; saveMsg.textContent = 'Salvo…';
+    try{
+      const res = await fetch(`${SB_URL}/rest/v1/scores`, {
+        method:'POST', headers:{apikey:SB_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},
+        body: JSON.stringify({nickname, score: st.score})
+      });
+      if (!res.ok) throw new Error(res.status);
+      saved = true; myEntry = {nickname, score: st.score}; store.set('konbini_nick', nickname);
+      saveMsg.textContent = 'Salvato. Guarda la classifica qui sotto.'; loadBoard();
+    } catch(e){
+      saveBtn.disabled = false; saveMsg.textContent = 'Errore nel salvataggio, riprova.';
+    }
+  }
+  saveBtn.addEventListener('click', saveScore);
+  nickInput.addEventListener('keydown', e => { if (e.key==='Enter') saveScore(); });
+
+  // ================= PLAYER =================
+  song.addEventListener('error', () => {
+    song.style.display = 'none';
+    document.getElementById('songNote').textContent = 'Konbini esce il 3 dicembre. Torna qui a sentirlo.';
+  });
+
+  hud(); loadBoard();
+  setInterval(() => { if (!st.running) loadBoard(); }, 30000);
+}
+</script>
+</body>
+</html>
