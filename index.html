@@ -49,6 +49,7 @@
   .legend img{image-rendering:pixelated;width:auto;height:28px}
   .legend b{font-weight:700}
   .legend .bad{color:var(--red)}
+  .num{font-family:"Press Start 2P",monospace;font-size:.72em;letter-spacing:0;white-space:nowrap}
   .btn{appearance:none;border:0;font-family:"Press Start 2P",monospace;font-size:13px;padding:14px 22px;background:var(--ink);color:#fff;cursor:pointer;
        box-shadow:0 4px 0 0 #000}
   .btn:active{transform:translateY(2px);box-shadow:0 2px 0 0 #000}
@@ -125,7 +126,7 @@
     <h3><span>IN RIPRODUZIONE</span><span>♪</span></h3>
     <div class="title">KONBINI — CIDDU</div>
     <audio id="song" src="konbini.mp3" preload="metadata" controls loop></audio>
-    <div class="note" id="songNote">Anteprima. Il pezzo intero esce il 3 dicembre su tutte le piattaforme.</div>
+    <div class="note" id="songNote">Anteprima. Il pezzo intero esce il <span class="num">3</span> dicembre su tutte le piattaforme.</div>
     <!-- SPOTIFY: dopo il 3/12 incolla qui l'embed del pezzo -->
     <div class="spotify" id="spotify"></div>
   </section>
@@ -338,10 +339,13 @@
   // legenda
   const legend = document.getElementById('legend');
   [['doritos','+30 Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Busta d’oro']]
-    .forEach(([k,t]) => { const d=document.createElement('div'); const im=new Image(); im.src=IMG[k].toDataURL(); im.alt=''; const s=document.createElement('span'); s.textContent=t; d.append(im,s); legend.appendChild(d); });
+    .forEach(([k,t]) => { const d=document.createElement('div'); const im=new Image(); im.src=IMG[k].toDataURL(); im.alt='';
+      const [n,...rest]=t.split(' '); const b=document.createElement('span'); b.className='num'; b.textContent=n;
+      const s=document.createElement('span'); s.textContent=rest.join(' '); d.append(im,b,s); legend.appendChild(d); });
   { const d=document.createElement('div'); d.className='bad'; d.style.gridColumn='1/3';
     ['apple','carrot','broccoli'].forEach(k=>{ const im=new Image(); im.src=IMG[k].toDataURL(); im.alt=''; d.appendChild(im); });
-    const s=document.createElement('span'); s.textContent=' −30 frutta e verdura'; d.appendChild(s); legend.appendChild(d); }
+    const b=document.createElement('span'); b.className='num'; b.textContent='−30';
+    const s=document.createElement('span'); s.textContent='frutta e verdura'; d.append(b,s); legend.appendChild(d); }
 
   // ================= CANVAS =================
   const canvas = document.getElementById('game');
@@ -513,7 +517,9 @@
     const best = Math.max(st.score, Number(store.get('konbini_best')||0));
     store.set('konbini_best', String(best));
     document.getElementById('finalScore').textContent = st.score;
-    document.getElementById('bestLine').textContent = (st.score >= best && st.score > 0) ? 'Nuovo record personale.' : 'Il tuo record: ' + best;
+    const bl = document.getElementById('bestLine');
+    if (st.score >= best && st.score > 0) bl.textContent = 'Nuovo record personale.';
+    else { bl.textContent = 'Il tuo record: '; const n=document.createElement('span'); n.className='num'; n.textContent=best; bl.appendChild(n); }
     saveMsg.textContent = ''; saveBtn.disabled = st.score <= 0;
     overScreen.classList.remove('hidden');
   }
