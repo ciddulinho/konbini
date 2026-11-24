@@ -74,7 +74,15 @@
   .empty{font-size:16px;color:var(--muted);padding:4px}
 
   .player .title{font-family:"Press Start 2P",monospace;font-size:13px;margin-bottom:10px}
-  .player audio{width:100%}
+  .player audio{display:none}
+  .aplayer{display:flex;align-items:center;gap:12px;padding:6px 0}
+  .apbtn{flex:none;width:44px;height:44px;border:0;background:var(--ink);color:#fff;font-size:16px;cursor:pointer;box-shadow:0 4px 0 0 #000;display:grid;place-items:center;padding:0}
+  .apbtn:active{transform:translateY(2px);box-shadow:0 2px 0 0 #000}
+  .aptrack{position:relative;flex:1;height:44px;margin:0 12px;cursor:pointer;touch-action:none}
+  .aptrack .rail{position:absolute;left:0;right:0;top:50%;height:8px;margin-top:-4px;background:#dfe5e8;box-shadow:0 0 0 2px var(--ink)}
+  .aptrack .fill{position:absolute;left:0;top:50%;height:8px;margin-top:-4px;width:0;background:var(--tag)}
+  .aptrack .thumb{position:absolute;top:50%;left:0;height:30px;width:auto;transform:translate(-50%,-50%);image-rendering:pixelated;pointer-events:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+  .aptime{flex:none;font-family:"Press Start 2P",monospace;font-size:10px;white-space:nowrap}
   .player .note{font-size:15px;color:var(--muted);margin-top:6px}
   .spotify{margin-top:10px}
   footer{margin-top:18px;font-size:15px;color:var(--muted);text-align:center}
@@ -125,7 +133,12 @@
   <section class="card pix player">
     <h3><span>IN RIPRODUZIONE</span><span>♪</span></h3>
     <div class="title">KONBINI — CIDDU</div>
-    <audio id="song" src="konbini.mp3" preload="metadata" controls loop></audio>
+    <audio id="song" src="konbini.mp3" preload="metadata" loop></audio>
+    <div class="aplayer" id="aplayer">
+      <button class="apbtn" id="apBtn" aria-label="Play">▶</button>
+      <div class="aptrack" id="apTrack"><div class="rail"></div><div class="fill" id="apFill"></div><img class="thumb" id="apThumb" alt=""></div>
+      <span class="aptime" id="apTime">0:00</span>
+    </div>
     <div class="note" id="songNote">konbini out <span class="num">3</span> dicembre 🏪</div>
     <!-- SPOTIFY: dopo il 3/12 incolla qui l'embed del pezzo -->
     <div class="spotify" id="spotify"></div>
@@ -572,9 +585,30 @@
 
   // ================= PLAYER =================
   song.addEventListener('error', () => {
-    song.style.display = 'none';
+    document.getElementById('aplayer').style.display = 'none';
     document.getElementById('songNote').textContent = 'Konbini esce il 3 dicembre. Torna qui a sentirlo.';
   });
+
+  // ================= PLAYER CUSTOM =================
+  {
+    const btn=document.getElementById('apBtn'), track=document.getElementById('apTrack'), fill=document.getElementById('apFill'), thumb=document.getElementById('apThumb'), time=document.getElementById('apTime');
+    thumb.src = IMG.doritos.toDataURL();
+    const fmt = t => { t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+    const draw = () => { const d=song.duration||0, pct = d ? song.currentTime/d*100 : 0;
+      fill.style.width=pct+'%'; thumb.style.left=pct+'%'; time.textContent = fmt(song.currentTime)+' / '+fmt(d); };
+    const setBtn = () => { btn.textContent = song.paused ? '▶' : '❚❚'; btn.setAttribute('aria-label', song.paused ? 'Play' : 'Pausa'); };
+    btn.addEventListener('click', () => { if (song.paused) song.play().catch(()=>{}); else song.pause(); });
+    ['timeupdate','loadedmetadata','durationchange'].forEach(e=>song.addEventListener(e,draw));
+    ['play','pause'].forEach(e=>song.addEventListener(e,setBtn));
+    let drag=false;
+    const seek = cx => { const r=track.getBoundingClientRect(), d=song.duration; if(!d) return;
+      song.currentTime = Math.min(1,Math.max(0,(cx-r.left)/r.width))*d; draw(); };
+    track.addEventListener('pointerdown', e => { drag=true; try{track.setPointerCapture(e.pointerId);}catch(_){} seek(e.clientX); });
+    track.addEventListener('pointermove', e => { if(drag) seek(e.clientX); });
+    track.addEventListener('pointerup', () => drag=false);
+    track.addEventListener('pointercancel', () => drag=false);
+    draw(); setBtn();
+  }
 
   hud(); loadBoard();
   setInterval(() => { if (!st.running) loadBoard(); }, 30000);
