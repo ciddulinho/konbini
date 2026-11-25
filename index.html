@@ -35,6 +35,9 @@
   .hud{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-bottom:10px;font-family:"Press Start 2P",monospace;font-size:12px}
   .hud .tag{background:var(--tag);padding:6px 8px}
   .hud .time.low{color:var(--red)}
+  .hud .time{display:inline-block}
+  .hud .time.plus{animation:plus .5s steps(3)}
+  @keyframes plus{0%{color:#1fa463;transform:scale(1.35)}100%{transform:scale(1)}}
   .hud .song{color:#c9520c;font-size:11px}
   .hud .combo{color:var(--green);font-size:10px}
 
@@ -482,6 +485,7 @@
           st.combo++;
           if (info.sec){
             const full = songLimit >= MAX_SEC; addSeconds(info.sec); buzz(15);
+            if (!full){ st.time += info.sec; hudTime.classList.remove('plus'); void hudTime.offsetWidth; hudTime.classList.add('plus'); }
             st.pops.push({x:cx,y:top,txt: full ? 'MAX' : '+'+info.sec+'s',col:'#c9520c',life:.8});
           } else {
             const p = info.pts * mult(); st.score += p; buzz(it.type==='gold' ? [20,40,20] : 15);
