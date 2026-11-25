@@ -35,6 +35,7 @@
   .hud{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-bottom:10px;font-family:"Press Start 2P",monospace;font-size:12px}
   .hud .tag{background:var(--tag);padding:6px 8px}
   .hud .time.low{color:var(--red)}
+  .hud .song{color:#c9520c;font-size:11px}
   .hud .combo{color:var(--green);font-size:10px}
 
   .stage{position:relative;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -83,6 +84,7 @@
   .apbtn:active{transform:translateY(2px);box-shadow:0 2px 0 0 #000}
   .aptrack{position:relative;flex:1;height:44px;margin:0 12px;cursor:pointer;touch-action:none}
   .aptrack .rail{position:absolute;left:0;right:0;top:50%;height:8px;margin-top:-4px;background:#dfe5e8;box-shadow:0 0 0 2px var(--ink)}
+  .aptrack .lock{position:absolute;right:0;top:50%;height:8px;margin-top:-4px;background:repeating-linear-gradient(45deg,#9aa3ad 0 3px,#dfe5e8 3px 6px)}
   .aptrack .fill{position:absolute;left:0;top:50%;height:8px;margin-top:-4px;width:0;background:var(--tag)}
   .aptrack .thumb{position:absolute;top:50%;left:0;height:30px;width:auto;transform:translate(-50%,-50%);image-rendering:pixelated;pointer-events:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
   .aptime{flex:none;font-family:"Press Start 2P",monospace;font-size:10px;white-space:nowrap}
@@ -102,6 +104,7 @@
   <div class="hud pix">
     <span class="tag" id="hudScore">00000</span>
     <span class="combo" id="hudCombo"></span>
+    <span class="song" id="hudSong">♪ 0:45</span>
     <span class="time" id="hudTime">⏱ 60</span>
   </div>
 
@@ -137,10 +140,10 @@
   <section class="card pix player">
     <h3><span>IN RIPRODUZIONE</span><span>♪</span></h3>
     <div class="title">KONBINI — CIDDU</div>
-    <audio id="song" src="konbini.mp3" preload="metadata" loop></audio>
+    <audio id="song" src="konbini.mp3" preload="metadata"></audio>
     <div class="aplayer" id="aplayer">
       <button class="apbtn" id="apBtn" aria-label="Play">▶</button>
-      <div class="aptrack" id="apTrack"><div class="rail"></div><div class="fill" id="apFill"></div><img class="thumb" id="apThumb" alt=""></div>
+      <div class="aptrack" id="apTrack"><div class="rail"></div><div class="lock" id="apLock"></div><div class="fill" id="apFill"></div><img class="thumb" id="apThumb" alt=""></div>
       <span class="aptime" id="apTime">0:00</span>
     </div>
     <div class="note" id="songNote">konbini out <span class="num">3</span> dicembre 🏪</div>
@@ -337,7 +340,7 @@
 
   // ================= ITEM =================
   const ITEMS = {
-    doritos:{pts:30,  weight:16, name:'Doritos'},
+    doritos:{pts:0, sec:1, weight:16, name:'Doritos'},
     kirin:  {pts:20,  weight:16, name:'Kirin'},
     jager:  {pts:25,  weight:12, name:'Jäger'},
     pocari: {pts:10,  weight:18, name:'Pocari'},
@@ -356,7 +359,7 @@
 
   // legenda
   const legend = document.getElementById('legend');
-  [['doritos','+30 Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Doritos oro']]
+  [['doritos','+1s Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Doritos oro']]
     .forEach(([k,t]) => { const d=document.createElement('div'); const im=new Image(); im.src=IMG[k].toDataURL(); im.alt='';
       const [n,...rest]=t.split(' '); const b=document.createElement('span'); b.className='num'; b.textContent=n;
       const s=document.createElement('span'); s.textContent=rest.join(' '); d.append(im,b,s); legend.appendChild(d); });
@@ -421,6 +424,19 @@
   // vibrazione (Android; su iPhone il browser non la supporta)
   const buzz = pattern => { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(e){} };
 
+  // ================= SBLOCCO PEZZO =================
+  const BASE_SEC = 45, MAX_SEC = 60;          // si sente fino a 0:45, max 1:00
+  let songLimit = BASE_SEC, limitHit = false, drawPlayer = () => {};
+  const fmtT = t => { t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+  function enforceLimit(){
+    if (!song.paused && song.currentTime >= songLimit - 0.03){ song.pause(); song.currentTime = songLimit; limitHit = true; }
+  }
+  function addSeconds(n){
+    const before = songLimit; songLimit = Math.min(MAX_SEC, songLimit + n);
+    if (limitHit && st.running && songLimit > before){ limitHit = false; song.play().catch(()=>{}); }
+    drawPlayer();
+  }
+
   // ================= STATO =================
   const st = { running:false, score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, last:0, flash:0, elapsed:0 };
   const mult = () => st.combo >= 25 ? 3 : st.combo >= 10 ? 2 : 1;
@@ -429,6 +445,7 @@
     hudScore.textContent = String(Math.max(0,st.score)).padStart(5,'0');
     const s = Math.ceil(st.time); hudTime.textContent = '⏱ ' + s; hudTime.classList.toggle('low', s <= 10);
     hudCombo.textContent = mult() > 1 ? 'COMBO x' + mult() : '';
+    document.getElementById('hudSong').textContent = '♪ ' + fmtT(songLimit);
   }
 
   function spawn(){
@@ -462,8 +479,14 @@
           st.pops.push({x:cx,y:top,txt:String(info.pts),col:'#d8322a',life:.9});
           buzz(220);
         } else {
-          st.combo++; const p = info.pts * mult(); st.score += p; buzz(it.type==='gold' ? [20,40,20] : 15);
-          st.pops.push({x:cx,y:top,txt:'+'+p,col: it.type==='gold' ? '#a97c1c' : '#1d1b22',life:.8});
+          st.combo++;
+          if (info.sec){
+            const full = songLimit >= MAX_SEC; addSeconds(info.sec); buzz(15);
+            st.pops.push({x:cx,y:top,txt: full ? 'MAX' : '+'+info.sec+'s',col:'#c9520c',life:.8});
+          } else {
+            const p = info.pts * mult(); st.score += p; buzz(it.type==='gold' ? [20,40,20] : 15);
+            st.pops.push({x:cx,y:top,txt:'+'+p,col: it.type==='gold' ? '#a97c1c' : '#1d1b22',life:.8});
+          }
         }
         st.items.splice(i,1); continue;
       }
@@ -495,6 +518,7 @@
     if (!st.last) st.last = ts;
     const dt = Math.min(0.05,(ts-st.last)/1000); st.last = ts;
     if (st.running){ update(dt); hud(); }
+    enforceLimit();
     render(ts);
     requestAnimationFrame(loop);
   }
@@ -528,7 +552,8 @@
     Object.assign(st, {score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, flash:0, elapsed:0, running:true});
     saved = false; hud(); document.getElementById('presaveBtn').classList.add('hidden');
     startScreen.classList.add('hidden'); overScreen.classList.add('hidden');
-    if (song.paused && !song.error) song.play().catch(()=>{});
+    songLimit = BASE_SEC; limitHit = false; drawPlayer();
+    if (!song.error){ try{ song.currentTime = 0; }catch(e){} song.play().catch(()=>{}); }
   }
   function gameOver(){
     st.running = false; st.items = []; hud();
@@ -599,15 +624,19 @@
     const btn=document.getElementById('apBtn'), track=document.getElementById('apTrack'), fill=document.getElementById('apFill'), thumb=document.getElementById('apThumb'), time=document.getElementById('apTime');
     thumb.src = IMG.doritos.toDataURL();
     const fmt = t => { t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+    const lock=document.getElementById('apLock');
     const draw = () => { const d=song.duration||0, pct = d ? song.currentTime/d*100 : 0;
-      fill.style.width=pct+'%'; thumb.style.left=pct+'%'; time.textContent = fmt(song.currentTime)+' / '+fmt(d); };
+      fill.style.width=pct+'%'; thumb.style.left=pct+'%';
+      lock.style.left = (d ? Math.min(100, songLimit/d*100) : 100) + '%';
+      time.textContent = fmt(song.currentTime)+' / '+fmt(songLimit); };
+    drawPlayer = draw;
     const setBtn = () => { btn.textContent = song.paused ? '▶' : '❚❚'; btn.setAttribute('aria-label', song.paused ? 'Play' : 'Pausa'); };
-    btn.addEventListener('click', () => { if (song.paused) song.play().catch(()=>{}); else song.pause(); });
+    btn.addEventListener('click', () => { if (song.paused){ if (song.currentTime >= songLimit - 0.2) song.currentTime = 0; limitHit=false; song.play().catch(()=>{}); } else song.pause(); });
     ['timeupdate','loadedmetadata','durationchange'].forEach(e=>song.addEventListener(e,draw));
     ['play','pause'].forEach(e=>song.addEventListener(e,setBtn));
     let drag=false;
     const seek = cx => { const r=track.getBoundingClientRect(), d=song.duration; if(!d) return;
-      song.currentTime = Math.min(1,Math.max(0,(cx-r.left)/r.width))*d; draw(); };
+      song.currentTime = Math.min(songLimit - 0.1, Math.min(1,Math.max(0,(cx-r.left)/r.width))*d); draw(); };
     track.addEventListener('pointerdown', e => { drag=true; try{track.setPointerCapture(e.pointerId);}catch(_){} seek(e.clientX); });
     track.addEventListener('pointermove', e => { if(drag) seek(e.clientX); });
     track.addEventListener('pointerup', () => drag=false);
