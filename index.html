@@ -362,7 +362,7 @@
 
   // legenda
   const legend = document.getElementById('legend');
-  [['doritos','+1s Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Doritos oro']]
+  [['doritos','+1sec Doritos'],['jager','+25 Jäger'],['kirin','+20 Kirin'],['condom','+15 Condom'],['pocari','+10 Pocari'],['gold','+100 Doritos oro']]
     .forEach(([k,t]) => { const d=document.createElement('div'); const im=new Image(); im.src=IMG[k].toDataURL(); im.alt='';
       const [n,...rest]=t.split(' '); const b=document.createElement('span'); b.className='num'; b.textContent=n;
       const s=document.createElement('span'); s.textContent=rest.join(' '); d.append(im,b,s); legend.appendChild(d); });
