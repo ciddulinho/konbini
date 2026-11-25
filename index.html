@@ -58,6 +58,9 @@
   .pricetag{font-family:"Press Start 2P",monospace;background:var(--tag);font-size:26px;padding:12px 16px 12px 26px;clip-path:polygon(14px 0,100% 0,100% 100%,14px 100%,0 50%)}
   .row{display:flex;gap:8px;width:100%;max-width:300px}
   .row input{flex:1;min-width:0;border:3px solid var(--ink);padding:10px;font-family:"Pixelify Sans",monospace;font-size:17px;outline:none;border-radius:0}
+  .btn.presave{display:inline-block;text-decoration:none;background:var(--tag);color:var(--ink);box-shadow:0 0 0 3px var(--ink),0 5px 0 0 var(--ink);line-height:1.5}
+  .btn.presave.hidden{display:none}
+  .presave-sm{display:inline-block;margin-top:10px;font-family:"Press Start 2P",monospace;font-size:10px;color:var(--ink);background:var(--tag);padding:10px 12px;text-decoration:none;box-shadow:0 0 0 2px var(--ink)}
   .msg{font-size:15px;min-height:20px;color:var(--muted)}
 
   section.card{padding:14px;margin-top:18px}
@@ -121,6 +124,7 @@
         <button class="btn" id="saveBtn">SALVA</button>
       </div>
       <div class="msg" id="saveMsg"></div>
+      <a class="btn presave hidden" id="presaveBtn" href="https://distrokid.com/hyperfollow/ciddu/konbini" target="_blank" rel="noopener">PRE-SALVA KONBINI</a>
       <button class="btn alt" id="againBtn">RIGIOCA</button>
     </div>
   </div>
@@ -140,6 +144,7 @@
       <span class="aptime" id="apTime">0:00</span>
     </div>
     <div class="note" id="songNote">konbini out <span class="num">3</span> dicembre 🏪</div>
+    <a class="presave-sm" href="https://distrokid.com/hyperfollow/ciddu/konbini" target="_blank" rel="noopener">PRE-SALVA SU SPOTIFY ↗</a>
     <!-- SPOTIFY: dopo il 3/12 incolla qui l'embed del pezzo -->
     <div class="spotify" id="spotify"></div>
   </section>
@@ -521,7 +526,7 @@
 
   function startGame(){
     Object.assign(st, {score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, flash:0, elapsed:0, running:true});
-    saved = false; hud();
+    saved = false; hud(); document.getElementById('presaveBtn').classList.add('hidden');
     startScreen.classList.add('hidden'); overScreen.classList.add('hidden');
     if (song.paused && !song.error) song.play().catch(()=>{});
   }
@@ -575,7 +580,7 @@
       });
       if (!res.ok) throw new Error(res.status);
       saved = true; myEntry = {nickname, score: st.score}; store.set('konbini_nick', nickname);
-      saveMsg.textContent = 'Salvato. Guarda la classifica qui sotto.'; loadBoard();
+      saveMsg.textContent = 'Salvato! Ora pre-salva il pezzo:'; document.getElementById('presaveBtn').classList.remove('hidden'); loadBoard();
     } catch(e){
       saveBtn.disabled = false; saveMsg.textContent = 'Errore nel salvataggio, riprova.';
     }
