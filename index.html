@@ -428,7 +428,7 @@
   const buzz = pattern => { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(e){} };
 
   // ================= SBLOCCO PEZZO =================
-  const BASE_SEC = 45, MAX_SEC = 60;          // si sente fino a 0:45, max 1:00
+  const START_SEC = 1, BASE_SEC = 45, MAX_SEC = 60;   // il pezzo parte da 0:01          // si sente fino a 0:45, max 1:00
   let songLimit = BASE_SEC, limitHit = false, drawPlayer = () => {};
   const fmtT = t => { t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
   function enforceLimit(){
@@ -557,7 +557,7 @@
     saved = false; hud(); document.getElementById('presaveBtn').classList.add('hidden');
     startScreen.classList.add('hidden'); overScreen.classList.add('hidden');
     songLimit = BASE_SEC; limitHit = false; drawPlayer();
-    if (!song.error){ try{ song.currentTime = 0; }catch(e){} song.play().catch(()=>{}); }
+    if (!song.error){ try{ song.currentTime = START_SEC; }catch(e){} song.play().catch(()=>{}); }
   }
   function gameOver(){
     st.running = false; st.items = []; hud();
@@ -635,7 +635,7 @@
       time.textContent = fmt(song.currentTime)+' / '+fmt(songLimit); };
     drawPlayer = draw;
     const setBtn = () => { btn.textContent = song.paused ? '▶' : '❚❚'; btn.setAttribute('aria-label', song.paused ? 'Play' : 'Pausa'); };
-    btn.addEventListener('click', () => { if (song.paused){ if (song.currentTime >= songLimit - 0.2) song.currentTime = 0; limitHit=false; song.play().catch(()=>{}); } else song.pause(); });
+    btn.addEventListener('click', () => { if (song.paused){ if (song.currentTime >= songLimit - 0.2 || song.currentTime < START_SEC) song.currentTime = START_SEC; limitHit=false; song.play().catch(()=>{}); } else song.pause(); });
     ['timeupdate','loadedmetadata','durationchange'].forEach(e=>song.addEventListener(e,draw));
     ['play','pause'].forEach(e=>song.addEventListener(e,setBtn));
     let drag=false;
