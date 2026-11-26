@@ -172,6 +172,12 @@
     set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
   };
 
+  // conteggio anonimo (visite, partite, salvataggi, presave): solo il tipo di evento, nessun dato personale
+  const track = type => { try { fetch(SB_URL + '/rest/v1/events', { method:'POST', keepalive:true,
+      headers:{ apikey: SB_KEY, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ type }) }).catch(()=>{}); } catch(e){} };
+  track('visit');
+
   // ================= PALETTE + SPRITE =================
   const PAL = {
     K:'#1d1b22', W:'#ffffff', w:'#d9dde3', g:'#9aa3ad',
@@ -554,7 +560,7 @@
 
   function startGame(){
     Object.assign(st, {score:0, combo:0, time:ROUND, items:[], pops:[], bx:W/2, tx:W/2, spawnT:0, flash:0, elapsed:0, running:true});
-    saved = false; hud(); document.getElementById('presaveBtn').classList.add('hidden');
+    saved = false; hud(); track('play'); document.getElementById('presaveBtn').classList.add('hidden');
     startScreen.classList.add('hidden'); overScreen.classList.add('hidden');
     songLimit = BASE_SEC; limitHit = false; drawPlayer();
     if (!song.error){ try{ song.currentTime = START_SEC; }catch(e){} song.play().catch(()=>{}); }
@@ -608,7 +614,7 @@
         body: JSON.stringify({nickname, score: st.score})
       });
       if (!res.ok) throw new Error(res.status);
-      saved = true; myEntry = {nickname, score: st.score}; store.set('konbini_nick', nickname);
+      saved = true; myEntry = {nickname, score: st.score}; track('save'); store.set('konbini_nick', nickname);
       saveMsg.textContent = 'Salvato! Ora pre-salva il pezzo:'; document.getElementById('presaveBtn').classList.remove('hidden'); loadBoard();
     } catch(e){
       saveBtn.disabled = false; saveMsg.textContent = 'Errore nel salvataggio, riprova.';
@@ -647,6 +653,8 @@
     track.addEventListener('pointercancel', () => drag=false);
     draw(); setBtn();
   }
+
+  document.querySelectorAll('a[href*="hyperfollow"]').forEach(a => a.addEventListener('click', () => track('presave')));
 
   hud(); loadBoard();
   setInterval(() => { if (!st.running) loadBoard(); }, 30000);
